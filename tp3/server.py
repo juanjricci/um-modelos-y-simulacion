@@ -105,38 +105,20 @@ while True:
 
     while True:
         vz = vz - 9.8 * tick
-        x = x + vx * tick
-        y = y + vy * tick
-        z = z + vz * tick - ((1/2) * (9.8) * (tick**2))
+        x = celery_calc.pos_x.delay(x, vx, tick).get()
+        y = celery_calc.pos_y.delay(y, vy, tick).get()
+        z = celery_calc.pos_z.delay(z, vz, tick).get()
         if z > zviento.get():
             vx = rx.get()
             vy = ry.get()
             # x = x + vx * tick
             # y = y + vy * tick
         if z <=0:
+            print("Cerrando conexion...")
+            clientsocket.close()
             break
         ax.scatter(x, y, z, c='r', marker='o')
         plt.draw()
         plt.pause(0.001)
 
-    # for i in np.arange(0,5,tick):
-    #     x = celery_calc.pos_x.delay(vx.get(), i)
-    #     y = celery_calc.pos_y.delay(vy.get(), i)
-    #     z = celery_calc.pos_z.delay(vz.get(), i)
-    #     if z.get() > zviento.get():
-    #         # aca tiene que desviarse
-    #         x = celery_calc.pos_res_x.delay(x.get(), rx.get(), tick)
-    #         y = celery_calc.pos_res_y.delay(y.get(), ry.get(), tick)
-    #     if z.get() < 0:
-    #         break
-    #     xdata.append(x.get()) 
-    #     ydata.append(y.get())
-    #     zdata.append(z.get())
-    #     ax.scatter(x.get(), y.get(), z.get(), c='r', marker='o')
-    #     plt.draw()
-    #     plt.pause(0.1)
-    
-    plt.show()
-
-    print("Cerrando conexion...")
-    clientsocket.close()
+    plt.pause(1)

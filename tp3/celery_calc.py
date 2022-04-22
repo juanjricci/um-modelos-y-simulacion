@@ -39,16 +39,16 @@ def altura_viento(vz):
 # CALCULOS DE LAS POSICIONES (PUNTOS EN X, Y, Z)
 
 @app.task
-def pos_x(vx, i): # calculo de la posicion en x
-    return vx*i # x = vx*t
+def pos_x(x, vx, tick): # calculo de la posicion en x
+    return x + vx*tick
 
 @app.task
-def pos_y(vy, i): # calculo de la posicion en y
-    return vy*i # x = vx*t
+def pos_y(y, vy, tick): # calculo de la posicion en y
+    return y + vy*tick
 
 @app.task
-def pos_z(vz, i): # calculo de la posicion en z
-    return vz*i-1/2*9.8*i**2 # x = vx*t
+def pos_z(z, vz, tick): # calculo de la posicion en z
+    return z + (vz*tick)-(1/2)*(9.8)*(tick**2)
 
 # CALCULOS DE LAS COMPONENTES DEL VECTOR RESULTANTE
 
