@@ -35,9 +35,9 @@ b = 45
 # wind_duration = rnd.uniform(0,1) # duracion del viento
 # wind_angle = rnd.randint(0, 360) # sentido del viento
 
-wind = input('Ingrese la velocidad del viento: ')
-wind_angle = input('Ingrese el angulo del viento: ')
-wind_duration = input('Ingrese la duracion del viento: ')
+wind = rnd.randint(0,10)
+wind_angle = rnd.randint(0, 360)
+wind_duration = rnd.randint(0,1)
 
 print(f'Velocidad inicial = {vi} m/s')
 s.send(str(vi).encode())
@@ -56,8 +56,11 @@ print(f'Angulo del viento = {wind_angle}º')
 s.send(str(wind_angle).encode())
 time.sleep(0.5)
 print(f'Duracion del viento = {wind_duration} s')
-s.send(str(wind_angle).encode())
+s.send(str(wind_duration).encode())
 time.sleep(0.5)
+
+msg = s.recv(1024)
+print(msg.decode())
 
 s.close()
 print("Cerrando conexion")

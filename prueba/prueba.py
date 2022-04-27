@@ -16,8 +16,12 @@ port = 1234
 serversocket.bind((host, port))
 serversocket.listen(2)
 
+xlist = []
+ylist = []
+zlist = []
 
-def plot(vi, a, b, wind, wind_angle, cs):
+
+def plot(vi, a, b, wind, wind_angle, cs, client_number):
 
     # declaracion de la figura y sus ejes
     fig = plt.figure()
@@ -25,6 +29,7 @@ def plot(vi, a, b, wind, wind_angle, cs):
     ax.set_xlabel('x')
     ax.set_ylabel('y')
     ax.set_zlabel('z')
+
     # calculos de componentes del vector velocidad
     velx = celery_calc.vel_x.delay(vi, a, b)
     vely = celery_calc.vel_y.delay(vi, a, b)
@@ -59,9 +64,12 @@ def plot(vi, a, b, wind, wind_angle, cs):
             vx = rx.get()
             vy = ry.get()
         if z <=0:
+            xlist.append(x)
+            ylist.append(y)
+            zlist.append(z)
             msg = f"Tiempo de vuelo = {tiempo}"
             cs.send(msg.encode())
-            print("Cerrando conexion...")
+            # print("Cerrando conexion...")
             cs.close()
             break
         ax.scatter(x, y, z, c='r', marker='o')
@@ -70,17 +78,21 @@ def plot(vi, a, b, wind, wind_angle, cs):
 
     plt.show()
 
+
 def multiP():
+    client_number = -1
     while True:
         clientsocket, address = serversocket.accept()
         print("Got a connection from %s" % str(address))
+        client_number += 1
+        print(f'Client number: {client_number}')
         vi = int(clientsocket.recv(1024).decode())
         a = int(clientsocket.recv(1024).decode())
         b = int(clientsocket.recv(1024).decode())
         wind = int(clientsocket.recv(1024).decode())
         wind_angle = int(clientsocket.recv(1024).decode())
         # wind_duration = int(clientsocket.recv(1024).decode())
-        p = multiprocessing.Process(target=plot, args=(vi, a, b, wind, wind_angle, clientsocket))
+        p = multiprocessing.Process(target=plot, args=(vi, a, b, wind, wind_angle, clientsocket, client_number))
         p.start()
 
 if __name__ == "__main__":

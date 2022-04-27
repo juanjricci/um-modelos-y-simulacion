@@ -40,11 +40,16 @@ xdata = []
 ydata = []
 zdata = []
 
+client_count = -1
+client_color = ['g', 'r', 'b', 'y']
+
 while True:
     # establish a connection
     print("Esperando conexiones remotas (accept)")
     clientsocket, addr = serversocket.accept()
     print("Got a connection from %s" % str(addr))
+    client_count = client_count + 1
+    color = client_color[client_count]
 
     # recibe datos del cliente
     vi = int(clientsocket.recv(1024).decode())
@@ -55,20 +60,22 @@ while True:
     wind_duration = int(clientsocket.recv(1024).decode())
 
     # calculos de componentes del vector velocidad
-    vx = celery_calc.vel_x.delay(vi, a, b)
-    vy = celery_calc.vel_y.delay(vi, a, b)
-    vz = celery_calc.vel_z.delay(vi, a, b)
+    velx = celery_calc.vel_x.delay(vi, a, b)
+    vely = celery_calc.vel_y.delay(vi, a, b)
+    velz = celery_calc.vel_z.delay(vi, a, b)
 
     print('Vector velocidad')
-    print(vx.get())
-    print(vy.get())
-    print(vz.get())
+    print(velx.get())
+    print(vely.get())
+    print(velz.get())
 
     # calculo de la altura del viento
-    zviento = celery_calc.altura_viento.delay(vz.get())
+    zviento = celery_calc.altura_viento.delay(velz.get())
 
     print('Altura del viento')
     print(zviento.get())
+
+    tick = 0.05
 
     # calculos de componentes del vector velocidad del viento
     wx = celery_calc.wind_x.delay(wind, wind_angle)
@@ -79,8 +86,8 @@ while True:
     print(wy.get())
 
     # calculos de componentes del vector resultante
-    rx = celery_calc.res_x.delay(vx.get(), wx.get())
-    ry = celery_calc.res_y.delay(vy.get(), wy.get())
+    rx = celery_calc.res_x.delay(velx.get(), wx.get())
+    ry = celery_calc.res_y.delay(vely.get(), wy.get())
 
     print('Vector resultante')
     print(rx.get())
@@ -90,20 +97,18 @@ while True:
     print(f'M: {b}')
     print(f'Op: {vi}')
 
-    color = ['g', 'r', 'b']
-    color_pto = color[rnd.randint(0,2)]
-
-    tick = 0.05
-
     x=0
     y=0
     z=0
 
-    vz = vz.get()
-    vx = vx.get()
-    vy = vy.get()
+    vz = velz.get()
+    vx = velx.get()
+    vy = vely.get()
+
+    tiempo = 0
 
     while True:
+        tiempo = tiempo + tick
         vz = vz - 9.8 * tick
         x = celery_calc.pos_x.delay(x, vx, tick).get()
         y = celery_calc.pos_y.delay(y, vy, tick).get()
@@ -111,14 +116,14 @@ while True:
         if z > zviento.get():
             vx = rx.get()
             vy = ry.get()
-            # x = x + vx * tick
-            # y = y + vy * tick
         if z <=0:
+            msg = f"Tiempo de vuelo = {tiempo}"
+            clientsocket.send(msg.encode())
             print("Cerrando conexion...")
             clientsocket.close()
             break
-        ax.scatter(x, y, z, c='r', marker='o')
+        ax.scatter(x, y, z, c=color, marker='o')
         plt.draw()
         plt.pause(0.001)
 
-    plt.pause(1)
+    plt.pause(5)
