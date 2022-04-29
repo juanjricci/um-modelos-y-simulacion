@@ -6,13 +6,14 @@ import time
 import random as rnd
 
 # parseo de argumentos
-# parser = argparse.ArgumentParser(description="Calculadora")
+parser = argparse.ArgumentParser(description="Calculadora")
 # parser.add_argument('-H', '--host', help='IP del host', required=True)
 # parser.add_argument('-p', '--port', type=int, help='Puerto de conexion', required=True)
-# #parser.add_argument('-v', '--vi', type=int, help='Velocidad inicial', required=True)
-# #parser.add_argument('-a', type=int, help='Angulo de salida', required=True)
-# #parser.add_argument('-b', type=int, help='Angulo de desviacion', required=True)
-# args = parser.parse_args()
+parser.add_argument('-s', '--sim', type=int, help='Cantidad de simulaciones', required=True)
+parser.add_argument('-v', '--vi', type=int, help='Velocidad inicial', required=True)
+parser.add_argument('-a', type=int, help='Angulo de salida', required=True)
+parser.add_argument('-b', type=int, help='Angulo de desviacion', required=True)
+args = parser.parse_args()
 
 # create a socket object
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
@@ -27,14 +28,15 @@ print("Haciendo el connect")
 s.connect((host, port))   
 print("Handshake realizado con exito!")
 
-cant = int(input('Ingrese la cantidad de simulaciones: '))
+cant = args.sim
 
-# vi = 25
-# a = 45
-# b = 45
-vi = int(input('Ingrese la velocidad de salida: '))
-a = int(input('Ingrese el angulo de salida (alfa): '))
-b = int(input('Ingrese el angulo de desviacion (beta): '))
+vi = args.vi
+a = args.a
+b = args.b
+# vi = int(input('Ingrese la velocidad de salida: '))
+# a = int(input('Ingrese el angulo de salida (alfa): '))
+# b = int(input('Ingrese el angulo de desviacion (beta): '))
+time.sleep(0.5)
 
 print(f'Cantidad de simulaciones = {cant}')
 s.send(str(cant).encode())
