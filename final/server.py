@@ -27,38 +27,38 @@ color = ['red', 'green', 'blue', 'yellow', 'black', 'gray', 'pink', 'purple', 'o
 def plot(vi, a, b, wind, wind_angle, dot_color, ax):
 
     # calculos de componentes del vector velocidad
-    velx = vi*np.cos(np.radians(a))*np.cos(np.radians(b))
-    vely = vi*np.cos(np.radians(a))*np.sin(np.radians(b))
-    velz = vi*np.sin(np.radians(a))
+    velx = celery_calc.vel_x.delay(vi, a, b) #vi*np.cos(np.radians(a))*np.cos(np.radians(b))
+    vely = celery_calc.vel_y.delay(vi, a, b)
+    velz = celery_calc.vel_z.delay(vi, a)
     # calculo de la altura del viento
-    zviento = ((velz**2)/(2*9.8))*2/3
+    zviento = celery_calc.altura_viento.delay(velz.get()) #((velz**2)/(2*9.8))*2/3
     # tick de tiempo
     tick = 0.05
     # calculos de componentes del vector velocidad del viento
-    wx = wind*np.cos(np.radians(wind_angle))
-    wy = wind*np.sin(np.radians(wind_angle))
+    wx = celery_calc.wind_x.delay(wind, wind_angle)
+    wy = celery_calc.wind_y.delay(wind, wind_angle)
     # calculos de componentes del vector resultante
-    rx = velx + wx
-    ry = vely + wy
+    rx = celery_calc.res_x.delay(velx.get(), wx.get())
+    ry = celery_calc.res_x.delay(vely.get(), wy.get())
 
     x=0
     y=0
     z=0
-    vz = velz
-    vx = velx
-    vy = vely
+    vz = velz.get()
+    vx = velx.get()
+    vy = vely.get()
 
     tiempo = 0
 
     while True:
         tiempo = tiempo + tick
-        vz = vz - 9.8 * tick
-        x = x + vx*tick
-        y = y + vy*tick
-        z = z + (vz*tick)-(1/2)*(9.8)*(tick**2)
-        if z > zviento:
-            vx = rx
-            vy = ry
+        vz = celery_calc.vz_variable.delay(vz, tick).get() #vz - 9.8 * tick
+        x = celery_calc.pos_x.delay(x, vx, tick).get() #x + vx*tick
+        y = celery_calc.pos_y.delay(y, vy, tick).get() #y + vy*tick
+        z = celery_calc.pos_z.delay(z, vz, tick).get() #z + (vz*tick)-(1/2)*(9.8)*(tick**2)
+        if z > zviento.get():
+            vx = rx.get()
+            vy = ry.get()
         if z <=0:
             xlist.append(x)
             ylist.append(y)
