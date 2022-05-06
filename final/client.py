@@ -52,7 +52,7 @@ s.send(str(b).encode())
 time.sleep(0.5)
 
 # msg = s.recv(1024)
-# print(msg.decode())
+# print(f'Tiempo de vuelo = {msg.decode()}')
 
 time.sleep(10)
 s.close()
