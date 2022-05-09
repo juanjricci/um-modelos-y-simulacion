@@ -1,0 +1,10 @@
+INSTRUCCIONES DE USO:
+    1. En un terminal correr la aplicacion de Celery: 
+        $ celery -A celery_calc worker --loglevel=info
+
+    2. En otro terminal correr el servidor:
+        $ python3 server.py
+
+    3. En otros terminales se pueden correr los clientes:
+        $ python3 client.py -s [cantidad de simulaciones] -v [vel. inicial] -a [alfa] -b [beta]
+

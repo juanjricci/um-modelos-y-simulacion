@@ -16,8 +16,12 @@ def vel_y(vi, a, b): # calculo de la velocidad en y
     return vi*np.cos(np.radians(a))*np.sin(np.radians(b))
 
 @app.task
-def vel_z(vi, a, b): # calculo de la velocidad en z
+def vel_z(vi, a): # calculo de la velocidad en z
     return vi*np.sin(np.radians(a))
+
+@app.task
+def vz_variable(vz, tick):
+    return vz - 9.8 * tick
 
 # CALCULOS DEL VIENTO
 

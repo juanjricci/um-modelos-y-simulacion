@@ -1,129 +1,153 @@
-#!/usr/bin/python3
-import socket
-import argparse
-import celery_calc
+import math
+from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
 import numpy as np
-import csv
+import celery_calc
 from mpl_toolkits.mplot3d import axes3d
 import random as rnd
+import socket
+import multiprocessing
+import time
 
-# create a socket object
+
 serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 serversocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-"""
-    socket.AF_INET -> sockets tcp/ip
-    socket.AF_UNIX -> sockets Unix (archivos en disco, similar a FIFO/named pipes)
-    socket.SOCK_STREAM -> socket tcp, orientado a la conexion (flujo de datos)
-    socket.SOCK_DGRAM -> socket udp, datagrama de usuario (no orientado a la conexion)
-"""
-# get local machine name
-parser = argparse.ArgumentParser(description="Calculadora")
-parser.add_argument('-H', '--host', help='IP del host', required=True)
-parser.add_argument('-p', '--port', type=int, help='Puerto de conexion', required=True)
-args = parser.parse_args()
 
-host = args.host
-port = args.port
+host = socket.gethostname()
+port = 1234
 
 serversocket.bind((host, port))
 serversocket.listen(2)
 
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
+xlist = []
+ylist = []
+zlist = []
+dispersion = []
 
-ax.set_xlabel('x')
-ax.set_ylabel('y')
-ax.set_zlabel('z')
+color = ['red', 'green', 'blue', 'yellow',
+         'black', 'gray', 'pink', 'purple', 'orange']
 
-xdata = []
-ydata = []
-zdata = []
 
-client_count = -1
-client_color = ['g', 'r', 'b', 'y']
+def calcular_puntos(tiempo, tick, vz, vx, vy, x, y, z,
+                    zviento, wind_duration, rx, ry,
+                    duracion, ax, dot_color):
+    while True:
+        tiempo = tiempo + tick
+        vz = celery_calc.vz_variable.delay(vz, tick).get()
+        x = celery_calc.pos_x.delay(x, vx, tick).get()
+        y = celery_calc.pos_y.delay(y, vy, tick).get() 
+        z = celery_calc.pos_z.delay(z, vz, tick).get()
+        if z <= 0:
+            xlist.append(x)
+            ylist.append(y)
+            zlist.append(z)
+            dispersion.append([x,y])
+            break
+        ax.scatter(x, y, z, c=dot_color, marker='o')
+        plt.draw()
+        plt.pause(0.0001)
+        if z > zviento.get():
+            while duracion < wind_duration:
+                tiempo = tiempo + tick
+                duracion = duracion + tick
+                vx = rx.get()
+                vy = ry.get()
+                vz = celery_calc.vz_variable.delay(vz, tick).get()
+                x = celery_calc.pos_x.delay(x, vx, tick).get()
+                y = celery_calc.pos_y.delay(y, vy, tick).get()
+                z = celery_calc.pos_z.delay(z, vz, tick).get()
+                ax.scatter(x, y, z, c=dot_color, marker='o')
+                plt.draw()
+                plt.pause(0.0001)
+    print(f'Duracion del viento: {duracion}')
 
-while True:
-    # establish a connection
-    print("Esperando conexiones remotas (accept)")
-    clientsocket, addr = serversocket.accept()
-    print("Got a connection from %s" % str(addr))
-    client_count = client_count + 1
-    color = client_color[client_count]
-
-    # recibe datos del cliente
-    vi = int(clientsocket.recv(1024).decode())
-    a = int(clientsocket.recv(1024).decode())
-    b = int(clientsocket.recv(1024).decode())
-    wind = int(clientsocket.recv(1024).decode())
-    wind_angle = int(clientsocket.recv(1024).decode())
-    wind_duration = int(clientsocket.recv(1024).decode())
+def plot(vi, a, b, wind, wind_angle, dot_color, ax, wind_duration, cs):
 
     # calculos de componentes del vector velocidad
     velx = celery_calc.vel_x.delay(vi, a, b)
     vely = celery_calc.vel_y.delay(vi, a, b)
-    velz = celery_calc.vel_z.delay(vi, a, b)
-
-    print('Vector velocidad')
-    print(velx.get())
-    print(vely.get())
-    print(velz.get())
+    velz = celery_calc.vel_z.delay(vi, a)
 
     # calculo de la altura del viento
     zviento = celery_calc.altura_viento.delay(velz.get())
 
-    print('Altura del viento')
-    print(zviento.get())
-
+    # tick de tiempo
     tick = 0.05
 
     # calculos de componentes del vector velocidad del viento
     wx = celery_calc.wind_x.delay(wind, wind_angle)
     wy = celery_calc.wind_y.delay(wind, wind_angle)
 
-    print('Vector viento')
-    print(wx.get())
-    print(wy.get())
-
     # calculos de componentes del vector resultante
     rx = celery_calc.res_x.delay(velx.get(), wx.get())
-    ry = celery_calc.res_y.delay(vely.get(), wy.get())
+    ry = celery_calc.res_x.delay(vely.get(), wy.get())
 
-    print('Vector resultante')
-    print(rx.get())
-    print(ry.get())
-
-    print(f'N: {a}')
-    print(f'M: {b}')
-    print(f'Op: {vi}')
-
-    x=0
-    y=0
-    z=0
-
+    x = 0
+    y = 0
+    z = 0
     vz = velz.get()
     vx = velx.get()
     vy = vely.get()
 
     tiempo = 0
+    duracion = 0
 
+    calcular_puntos(tiempo, tick, vz, vx, vy, x, y, z, zviento,
+                    wind_duration, rx, ry, duracion, ax, dot_color)
+
+
+def mp(clientsocket, client_number):
+    # declaracion de la figura y sus ejes
+    plt.ion()
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+
+    i = -1
+    cantidad = int(clientsocket.recv(1024).decode())
+    vi = int(clientsocket.recv(1024).decode())
+    a = int(clientsocket.recv(1024).decode())
+    b = int(clientsocket.recv(1024).decode())
     while True:
-        tiempo = tiempo + tick
-        vz = vz - 9.8 * tick
-        x = celery_calc.pos_x.delay(x, vx, tick).get()
-        y = celery_calc.pos_y.delay(y, vy, tick).get()
-        z = celery_calc.pos_z.delay(z, vz, tick).get()
-        if z > zviento.get():
-            vx = rx.get()
-            vy = ry.get()
-        if z <=0:
-            msg = f"Tiempo de vuelo = {tiempo}"
-            clientsocket.send(msg.encode())
-            print("Cerrando conexion...")
-            clientsocket.close()
+        i += 1
+        if i == cantidad:
             break
-        ax.scatter(x, y, z, c=color, marker='o')
-        plt.draw()
-        plt.pause(0.001)
+        wind = rnd.randint(0, 10)
+        wind_angle = rnd.randint(0, 360)
+        wind_duration = rnd.uniform(0, 1)
+        dot_color = color[rnd.randint(0, 8)]
+        plot(vi, a, b, wind, wind_angle, dot_color,
+             ax, wind_duration, clientsocket)
+    plt.show()
+    plt.pause(10)
+    print(dispersion)
+    mayor = 0
+    j = 1
+    for i in range(len(dispersion)):
+        for j in range(len(dispersion)):
+            l = math.sqrt(((dispersion[j][0]-dispersion[i][0])**2) + ((dispersion[j][1]-dispersion[i][1])**2))
+            #print(f'Distancia: {l}')
+            if l > mayor:
+                mayor = l
+        j =+ 1
+    print(f'Mayor distancia entre puntos = {mayor}')
 
-    plt.pause(5)
+
+
+def multiP():
+    client_number = -1
+    while True:
+        clientsocket, address = serversocket.accept()
+        print("Got a connection from %s" % str(address))
+        client_number += 1
+        print(f'Client number: {client_number}')
+        # wind_duration = int(clientsocket.recv(1024).decode())
+        p = multiprocessing.Process(
+            target=mp, args=(clientsocket, client_number))
+        p.start()
+
+
+if __name__ == "__main__":
+    multiP()
