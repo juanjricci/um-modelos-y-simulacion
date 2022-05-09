@@ -1,5 +1,3 @@
-from http import client
-from cupshelpers import Printer
 from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,28 +22,68 @@ xlist = []
 ylist = []
 zlist = []
 
-color = ['red', 'green', 'blue', 'yellow', 'black', 'gray', 'pink', 'purple', 'orange']
+color = ['red', 'green', 'blue', 'yellow',
+         'black', 'gray', 'pink', 'purple', 'orange']
+
+
+def calcular_puntos(tiempo, tick, vz, vx, vy, x, y, z,
+                    zviento, wind_duration, rx, ry,
+                    duracion, ax, dot_color):
+    while True:
+        tiempo = tiempo + tick
+        vz = celery_calc.vz_variable.delay(vz, tick).get()
+        x = celery_calc.pos_x.delay(x, vx, tick).get()
+        y = celery_calc.pos_y.delay(y, vy, tick).get() 
+        z = celery_calc.pos_z.delay(z, vz, tick).get()
+        if z <= 0:
+            xlist.append(x)
+            ylist.append(y)
+            zlist.append(z)
+            #print(xlist)
+            break
+        ax.scatter(x, y, z, c=dot_color, marker='o')
+        plt.draw()
+        plt.pause(0.0001)
+        if z > zviento.get():
+            while duracion < wind_duration:
+                tiempo = tiempo + tick
+                duracion = duracion + tick
+                vx = rx.get()
+                vy = ry.get()
+                vz = celery_calc.vz_variable.delay(vz, tick).get()
+                x = celery_calc.pos_x.delay(x, vx, tick).get()
+                y = celery_calc.pos_y.delay(y, vy, tick).get()
+                z = celery_calc.pos_z.delay(z, vz, tick).get()
+                ax.scatter(x, y, z, c=dot_color, marker='o')
+                plt.draw()
+                plt.pause(0.0001)
+    print(f'Duracion del viento: {duracion}')
+
 
 def plot(vi, a, b, wind, wind_angle, dot_color, ax, wind_duration, cs):
 
     # calculos de componentes del vector velocidad
-    velx = celery_calc.vel_x.delay(vi, a, b) #vi*np.cos(np.radians(a))*np.cos(np.radians(b))
+    velx = celery_calc.vel_x.delay(vi, a, b)
     vely = celery_calc.vel_y.delay(vi, a, b)
     velz = celery_calc.vel_z.delay(vi, a)
+
     # calculo de la altura del viento
-    zviento = celery_calc.altura_viento.delay(velz.get()) #((velz**2)/(2*9.8))*2/3
+    zviento = celery_calc.altura_viento.delay(velz.get())
+
     # tick de tiempo
     tick = 0.05
+
     # calculos de componentes del vector velocidad del viento
     wx = celery_calc.wind_x.delay(wind, wind_angle)
     wy = celery_calc.wind_y.delay(wind, wind_angle)
+
     # calculos de componentes del vector resultante
     rx = celery_calc.res_x.delay(velx.get(), wx.get())
     ry = celery_calc.res_x.delay(vely.get(), wy.get())
 
-    x=0
-    y=0
-    z=0
+    x = 0
+    y = 0
+    z = 0
     vz = velz.get()
     vx = velx.get()
     vy = vely.get()
@@ -53,41 +91,8 @@ def plot(vi, a, b, wind, wind_angle, dot_color, ax, wind_duration, cs):
     tiempo = 0
     duracion = 0
 
-    while True:
-        tiempo = tiempo + tick
-        vz = celery_calc.vz_variable.delay(vz, tick).get() #vz - 9.8 * tick
-        x = celery_calc.pos_x.delay(x, vx, tick).get() #x + vx*tick
-        y = celery_calc.pos_y.delay(y, vy, tick).get() #y + vy*tick
-        z = celery_calc.pos_z.delay(z, vz, tick).get() #z + (vz*tick)-(1/2)*(9.8)*(tick**2)
-        if z <=0:
-            xlist.append(x)
-            ylist.append(y)
-            zlist.append(z)
-            break
-        ax.scatter(x, y, z, c=dot_color, marker='o')
-        if z > zviento.get():
-            while duracion < wind_duration:
-                tiempo = tiempo + tick
-                duracion = duracion + tick
-                print(duracion)
-                # if duracion > 1:
-                #     break
-                vx = rx.get()
-                vy = ry.get()
-                vz = celery_calc.vz_variable.delay(vz, tick).get() #vz - 9.8 * tick
-                x = celery_calc.pos_x.delay(x, vx, tick).get() #x + vx*tick
-                y = celery_calc.pos_y.delay(y, vy, tick).get() #y + vy*tick
-                z = celery_calc.pos_z.delay(z, vz, tick).get() #z + (vz*tick)-(1/2)*(9.8)*(tick**2)
-                ax.scatter(x, y, z, c=dot_color, marker='o')
-                plt.draw()
-                plt.pause(0.0001)
-        # fig.canvas.draw()
-        # fig.canvas.flush_events()
-        plt.draw()
-        plt.pause(0.0001)
-
-    # cs.send(str(tiempo).encode())
-    plt.show()
+    calcular_puntos(tiempo, tick, vz, vx, vy, x, y, z, zviento,
+                    wind_duration, rx, ry, duracion, ax, dot_color)
 
 
 def mp(clientsocket, client_number):
@@ -112,8 +117,8 @@ def mp(clientsocket, client_number):
         wind_angle = rnd.randint(0, 360)
         wind_duration = rnd.uniform(0, 1)
         dot_color = color[rnd.randint(0, 8)]
-        plot(vi, a, b, wind, wind_angle, dot_color, ax, wind_duration, clientsocket)
-        # wind_duration = int(clientsocket.recv(1024).decode())
+        plot(vi, a, b, wind, wind_angle, dot_color,
+             ax, wind_duration, clientsocket)
     plt.show()
 
 
@@ -125,8 +130,10 @@ def multiP():
         client_number += 1
         print(f'Client number: {client_number}')
         # wind_duration = int(clientsocket.recv(1024).decode())
-        p = multiprocessing.Process(target=mp, args=(clientsocket, client_number))
+        p = multiprocessing.Process(
+            target=mp, args=(clientsocket, client_number))
         p.start()
+
 
 if __name__ == "__main__":
     multiP()
