@@ -1,3 +1,4 @@
+import math
 from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,6 +22,7 @@ serversocket.listen(2)
 xlist = []
 ylist = []
 zlist = []
+dispersion = []
 
 color = ['red', 'green', 'blue', 'yellow',
          'black', 'gray', 'pink', 'purple', 'orange']
@@ -39,7 +41,7 @@ def calcular_puntos(tiempo, tick, vz, vx, vy, x, y, z,
             xlist.append(x)
             ylist.append(y)
             zlist.append(z)
-            #print(xlist)
+            dispersion.append([x,y])
             break
         ax.scatter(x, y, z, c=dot_color, marker='o')
         plt.draw()
@@ -58,7 +60,6 @@ def calcular_puntos(tiempo, tick, vz, vx, vy, x, y, z,
                 plt.draw()
                 plt.pause(0.0001)
     print(f'Duracion del viento: {duracion}')
-
 
 def plot(vi, a, b, wind, wind_angle, dot_color, ax, wind_duration, cs):
 
@@ -120,6 +121,18 @@ def mp(clientsocket, client_number):
         plot(vi, a, b, wind, wind_angle, dot_color,
              ax, wind_duration, clientsocket)
     plt.show()
+    print(dispersion)
+    mayor = 0
+    j = 1
+    for i in range(len(dispersion)):
+        for j in range(len(dispersion)):
+            l = math.sqrt(((dispersion[j][0]-dispersion[i][0])**2) + ((dispersion[j][1]-dispersion[i][1])**2))
+            #print(f'Distancia: {l}')
+            if l > mayor:
+                mayor = l
+        j =+ 1
+    print(f'Mayor distancia entre puntos = {mayor}')
+
 
 
 def multiP():
