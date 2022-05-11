@@ -11,6 +11,7 @@ import multiprocessing
 import time
 import json
 import argparse as ap
+import psycopg2
 
 
 parser = ap.ArgumentParser()
@@ -19,6 +20,17 @@ args = parser.parse_args()
 
 with open(args.config, 'r') as f:
     config = json.load(f)
+
+# info para la coneccion a la database
+hostname = config["hostname"]
+username = config["username"]
+password = config["password"]
+database = config["database"]
+
+myConnection = psycopg2.connect( host=hostname, user=username, password=password, dbname=database )
+cursor = myConnection.cursor()
+
+query = """ INSERT INTO sim_data (velocidad_inicial, angulo_salida, angulo_desviacion, velocidad_viento, angulo_viento, duracion_viento, tiempo_vuelo, ultima_x, ultima_y, id_cliente) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"""
 
 serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 serversocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -46,7 +58,7 @@ color = config["color"]
 
 def calcular_puntos(tiempo, tick, vz, vx, vy, x, y, z,
                     zviento, wind_duration, rx, ry,
-                    duracion, ax, dot_color):
+                    duracion, ax, dot_color, vi, a , b, wind, wind_angle, client_number):
     while True:
         tiempo = tiempo + tick
         vz = celery_calc.vz_variable.delay(vz, tick).get()
@@ -76,8 +88,13 @@ def calcular_puntos(tiempo, tick, vz, vx, vy, x, y, z,
                 plt.draw()
                 plt.pause(0.0001)
     print(f'Duracion del viento: {duracion}')
+    valores_insertar = (vi, a, b, wind, wind_angle, wind_duration, tiempo, x, y, client_number)
+    cursor.execute(query, valores_insertar)
+    myConnection.commit()
 
-def plot(vi, a, b, wind, wind_angle, dot_color, ax, wind_duration, cs):
+
+
+def plot(vi, a, b, wind, wind_angle, dot_color, ax, wind_duration, cs, client_number):
 
     # calculos de componentes del vector velocidad
     velx = celery_calc.vel_x.delay(vi, a, b)
@@ -109,7 +126,7 @@ def plot(vi, a, b, wind, wind_angle, dot_color, ax, wind_duration, cs):
     duracion = 0
 
     calcular_puntos(tiempo, tick, vz, vx, vy, x, y, z, zviento,
-                    wind_duration, rx, ry, duracion, ax, dot_color)
+                    wind_duration, rx, ry, duracion, ax, dot_color, vi, a, b, wind, wind_angle, client_number)
 
 
 def mp(clientsocket, client_number):
@@ -135,7 +152,7 @@ def mp(clientsocket, client_number):
         wind_duration = rnd.uniform(0, 1)
         dot_color = color[rnd.randint(0, 8)]
         plot(vi, a, b, wind, wind_angle, dot_color,
-             ax, wind_duration, clientsocket)
+             ax, wind_duration, clientsocket, client_number)
     plt.show()
     print(dispersion)
     mayor = 0

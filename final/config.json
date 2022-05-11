@@ -7,5 +7,9 @@
     "sim": 3,
     "vi": 20,
     "a": 45,
-    "b": 45
+    "b": 45,
+    "hostname": "localhost",
+    "username": "postgres",
+    "password": "1234",
+    "database": "compu2"
 }

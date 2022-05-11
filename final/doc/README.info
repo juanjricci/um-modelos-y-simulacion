@@ -3,19 +3,17 @@ El programa consiste en un modelado y simulacion de golpes de golf en 3D.
 Cada golpe traza una parabola.
 A 2/3 de la altura maxima, la pelota es interceptada por una rafaga de viento 
 que altera su velocidad y posicion final (la desvia).
-El cliente es quien establece la cantidad de simulaciones, la velocidad de 
-salida, el angulo de salida (alfa) y el angulo de desviacion (beta). Esto lo
-hace a traves de los argumnetos. Estos datos seran constantes para todas las
-simulaciones de ese cliente.
+La cantidad de simulaciones, la velocidad de salida, el angulo de salida (alfa)
+y el angulo de desviacion (beta) estan definidos de forma predetermninada, pero
+el cliente lo puede modificar si lo desea. Estos datos seran constantes para 
+todas las simulaciones de ese cliente.
 El servidor tomara los datos, establecera aleatoriamente valores para el
 viento (velocidad y sentido). Estos datos son los que se iran alterando por 
 cada simulacion. Luego calculara, a traves de las tareas de celery, la
-trayectoria de la pelota. Luego mostrara un grafico en 3 dimensiones de la 
+trayectoria de la pelota y mostrara un grafico en 3 dimensiones de la 
 trayectoria punto a punto. La distancia entre cada punto se define por un tick
 de tiempo (en este caso de 0.05 segundos). Es decir, cada 0.05 segundos del 
 tiempo de vuelo de la pelota, se graficara un punto de la trayectoria.
-Cada cliente podra graficar la cantidad de simulaciones como la defina en sus
-argumentos.
 
 DISEÑO DEL PROGRAMA:
 Para el programa se utilizo:
@@ -23,5 +21,6 @@ Para el programa se utilizo:
 tareas son los calculos de las fromulas de tiro parabolico y de los vectores, 
 ya sea el del lanzamiento como el del viento.
  .Socket para poder realizar una conexion entre servidor y cliente.
- .Parseo de argumentos para especificar datos para las simulaciones.
+ .Parseo de argumentos para especificar la ruta del archivo de configuracion.
  .Multiprocessing para la ejecucion de clientes de manera concurrente.
+ .Base de datos Postgresql para el almacenamiento persistente de datos.

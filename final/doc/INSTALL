@@ -5,4 +5,5 @@ INSTRUCCIONES DE INSTALACION:
         $ pip install matplotlib
         $ pip install socket
         $ pip install numpy
+        $ pip install psycopg2
 
