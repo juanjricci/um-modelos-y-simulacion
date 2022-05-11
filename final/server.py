@@ -1,3 +1,4 @@
+from importlib.resources import path
 import math
 from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
@@ -8,13 +9,27 @@ import random as rnd
 import socket
 import multiprocessing
 import time
+import json
+import argparse as ap
 
+
+parser = ap.ArgumentParser()
+parser.add_argument('--config', type=str, help='Ruta al archivo de configuracion', required=True)
+args = parser.parse_args()
+
+with open(args.config, 'r') as f:
+    config = json.load(f)
 
 serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 serversocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-host = socket.gethostname()
-port = 1234
+host = config["host"]
+port = config["port"]
+print(host)
+print(port)
+
+# host = socket.gethostname()
+# port = 1234
 
 serversocket.bind((host, port))
 serversocket.listen(2)
@@ -24,8 +39,9 @@ ylist = []
 zlist = []
 dispersion = []
 
-color = ['red', 'green', 'blue', 'yellow',
-         'black', 'gray', 'pink', 'purple', 'orange']
+color = config["color"]
+# color = ['red', 'green', 'blue', 'yellow',
+#          'black', 'gray', 'pink', 'purple', 'orange']
 
 
 def calcular_puntos(tiempo, tick, vz, vx, vy, x, y, z,

@@ -1,0 +1,11 @@
+{
+    "host": "0.0.0.0",
+    "port": 1234,
+    "color": ["red", "green", "blue", "yellow",
+              "black", "gray", "pink", "purple", "orange"
+            ],
+    "sim": 3,
+    "vi": 20,
+    "a": 45,
+    "b": 45
+}
