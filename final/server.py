@@ -1,4 +1,3 @@
-from importlib.resources import path
 import math
 from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
@@ -21,16 +20,11 @@ args = parser.parse_args()
 with open(args.config, 'r') as f:
     config = json.load(f)
 
-# info para la coneccion a la database
+# info para la conexion a la database
 hostname = config["hostname"]
 username = config["username"]
 password = config["password"]
 database = config["database"]
-
-myConnection = psycopg2.connect( host=hostname, user=username, password=password, dbname=database )
-cursor = myConnection.cursor()
-
-query = """ INSERT INTO sim_data (velocidad_inicial, angulo_salida, angulo_desviacion, velocidad_viento, angulo_viento, duracion_viento, tiempo_vuelo, ultima_x, ultima_y, id_cliente) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"""
 
 serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 serversocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -88,9 +82,13 @@ def calcular_puntos(tiempo, tick, vz, vx, vy, x, y, z,
                 plt.draw()
                 plt.pause(0.0001)
     print(f'Duracion del viento: {duracion}')
+    myConnection = psycopg2.connect( host=hostname, user=username, password=password, dbname=database )
+    cursor = myConnection.cursor()
+    query = """ INSERT INTO sim_data (velocidad_inicial, angulo_salida, angulo_desviacion, velocidad_viento, angulo_viento, duracion_viento, tiempo_vuelo, ultima_x, ultima_y, id_cliente) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"""
     valores_insertar = (vi, a, b, wind, wind_angle, wind_duration, tiempo, x, y, client_number)
     cursor.execute(query, valores_insertar)
     myConnection.commit()
+    myConnection.close()
 
 
 
@@ -130,6 +128,7 @@ def plot(vi, a, b, wind, wind_angle, dot_color, ax, wind_duration, cs, client_nu
 
 
 def mp(clientsocket, client_number):
+
     # declaracion de la figura y sus ejes
     plt.ion()
     fig = plt.figure()
@@ -165,6 +164,13 @@ def mp(clientsocket, client_number):
                 mayor = l
         j =+ 1
     print(f'Mayor distancia entre puntos = {mayor}')
+    myConnection = psycopg2.connect( host=hostname, user=username, password=password, dbname=database )
+    cursor = myConnection.cursor()
+    query = """ INSERT INTO dispersion (id_cliente, dispersion) VALUES (%s,%s)"""
+    valores_insertar = (client_number, mayor)
+    cursor.execute(query, valores_insertar)
+    myConnection.commit()
+    myConnection.close()
 
 
 
