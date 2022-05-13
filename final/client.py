@@ -64,9 +64,14 @@ print(f'Angulo de desviacion = {b}º')
 s.send(str(b).encode())
 time.sleep(0.5)
 
-# msg = s.recv(1024)
+while True:
+    data = s.recv(1000)
+    if data.decode() == "exit":
+        break
+    print(data.decode())
+#print(msg.decode())
 # print(f'Tiempo de vuelo = {msg.decode()}')
 
-time.sleep(10)
+#time.sleep(10)
 s.close()
 print("Cerrando conexion")

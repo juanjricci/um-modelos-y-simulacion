@@ -29,12 +29,12 @@ password = config["password"]
 database = config["database"]
 
 myConnection = psycopg2.connect(
-        host=hostname, user=username, password=password, dbname=database
-        )
+    host=hostname, user=username, password=password, dbname=database
+)
 cursor = myConnection.cursor()
 
 create_tables_query = (
-    """CREATE TABLE sim_data (
+    """CREATE TABLE IF NOT EXISTS sim_data (
             id serial PRIMARY KEY,
             velocidad_inicial int,
             angulo_salida int,
@@ -48,7 +48,7 @@ create_tables_query = (
             ultima_y float(2),
             id_cliente int
     );""",
-    """CREATE TABLE dispersion (
+    """CREATE TABLE IF NOT EXISTS dispersion (
             id_cliente int,
             dispersion float(4),
             fecha_hora TIMESTAMP
@@ -89,7 +89,7 @@ def calcular_puntos(tiempo, tick, vz, vx, vy, x, y, z,
                     zviento, wind_duration, rx, ry,
                     duracion, ax, dot_color, vi, a, b, wind,
                     wind_angle, client_number,
-                    cursor, hmax):
+                    cursor, hmax, cs):
     while True:
         tiempo = tiempo + tick
         vz = celery_calc.vz_variable.delay(vz, tick).get()
@@ -132,7 +132,7 @@ def calcular_puntos(tiempo, tick, vz, vx, vy, x, y, z,
     cursor.execute(query, valores_insertar)
 
 
-def plot(vi, a, b, wind, wind_angle, dot_color, ax, wind_duration, 
+def plot(vi, a, b, wind, wind_angle, dot_color, ax, wind_duration,
          cs, client_number, cursor):
 
     # calculos de componentes del vector velocidad
@@ -168,14 +168,14 @@ def plot(vi, a, b, wind, wind_angle, dot_color, ax, wind_duration,
     calcular_puntos(tiempo, tick, vz, vx, vy, x, y, z, zviento,
                     wind_duration, rx, ry, duracion, ax, dot_color,
                     vi, a, b, wind, wind_angle, client_number,
-                    cursor, hmax)
+                    cursor, hmax, cs)
 
 
 def mp(clientsocket, client_number):
 
     myConnection = psycopg2.connect(
         host=hostname, user=username, password=password, dbname=database
-        )
+    )
     cursor = myConnection.cursor()
 
     # declaracion de la figura y sus ejes
@@ -198,6 +198,8 @@ def mp(clientsocket, client_number):
         wind = rnd.randint(0, 10)
         wind_angle = rnd.randint(0, 360)
         wind_duration = rnd.uniform(0, 1)
+        data = f"(Simulacion {i+1}) Valores del viento:\n\tVelocidad = {wind} m/s\n\tAngulo = {wind_angle}\n\tDuracion = {wind_duration}"
+        clientsocket.send(data.encode())
         dot_color = color[rnd.randint(0, 8)]
         plot(vi, a, b, wind, wind_angle, dot_color,
              ax, wind_duration, clientsocket, client_number,
@@ -224,6 +226,10 @@ def mp(clientsocket, client_number):
     cursor.execute(query, valores_insertar)
     myConnection.commit()
     myConnection.close()
+    msg = f"Simulacion terminada.\nDistancia maxima entre puntos finales = {mayor} m"
+    clientsocket.send(msg.encode())
+    exit_signal = "exit"
+    clientsocket.send(exit_signal.encode())
 
 
 def multiP():
