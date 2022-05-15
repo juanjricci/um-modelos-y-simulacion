@@ -19,20 +19,23 @@ parser.add_argument('--config', type=str,
                     help='Ruta al archivo de configuracion', required=True)
 args = parser.parse_args()
 
+# cargo el archivo de configuracion en modo lectura
 with open(args.config, 'r') as f:
     config = json.load(f)
 
-# info para la conexion a la database
+# info para la conexion a la database obtenida del archivo config
 hostname = config["hostname"]
 username = config["username"]
 password = config["password"]
 database = config["database"]
 
+# me conecto a la DB postgresql
 myConnection = psycopg2.connect(
     host=hostname, user=username, password=password, dbname=database
 )
 cursor = myConnection.cursor()
 
+# quert para crear las tablas en la DB
 create_tables_query = (
     """CREATE TABLE IF NOT EXISTS sim_data (
             id serial PRIMARY KEY,
@@ -56,30 +59,35 @@ create_tables_query = (
 )
 
 for query in create_tables_query:
+    # ejecuto la consulta
     cursor.execute(query)
 myConnection.commit()
 myConnection.close()
 
+# creo un socket para la conexion cliente/servidor
 serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 serversocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+# socket.AF_INET -> sockets tcp/ip
+# socket.SOCK_STREAM -> socket tcp, orientado a la conexion (flujo de datos)
 
+# obtengo los datos para la conexion del archivo de configuracion
 host = config["host"]
 port = config["port"]
 print(f'Waiting for conection (host: {host}, port: {port})...')
-# print(host)
-# print(port)
 
-# host = socket.gethostname()
-# port = 1234
-
+# enlazo el socket con la direccion
 serversocket.bind((host, port))
 serversocket.listen(2)
+# socket.listen([backlog]) habilita al servidor a recibir conexiones.
+# el backlog sirve para definir la cantidad de conexiones inaceptables permitidas.
+# cuando se llegue a ese numero, el servidor no aceptara mas conexiones.
 
 xlist = []
 ylist = []
 zlist = []
 dispersion = []
 
+# obtengo una lista de colores del archivo de configuracion.
 color = config["color"]
 # color = ['red', 'green', 'blue', 'yellow',
 #          'black', 'gray', 'pink', 'purple', 'orange']
@@ -118,7 +126,7 @@ def calcular_puntos(tiempo, tick, vz, vx, vy, x, y, z,
                 ax.scatter(x, y, z, c=dot_color, marker='o')
                 plt.draw()
                 plt.pause(0.0001)
-    # print(f'Duracion del viento: {duracion}')
+
     query = """ INSERT INTO sim_data (
         velocidad_inicial, angulo_salida, angulo_desviacion,
         velocidad_viento, angulo_viento, duracion_viento,
@@ -213,8 +221,9 @@ def mp(clientsocket, client_number):
     j = 1
     for i in range(len(dispersion)):
         for j in range(len(dispersion)):
-            l = math.sqrt(((dispersion[j][0]-dispersion[i][0])
-                          ** 2) + ((dispersion[j][1]-dispersion[i][1])**2))
+            l = celery_calc.disp.delay(dispersion, i, j).get()
+            # l = math.sqrt(((dispersion[j][0]-dispersion[i][0])
+            #               ** 2) + ((dispersion[j][1]-dispersion[i][1])**2))
             #print(f'Distancia: {l}')
             if l > mayor:
                 mayor = l
@@ -240,9 +249,13 @@ def multiP():
     client_number = -1
     while True:
         clientsocket, address = serversocket.accept()
+        # acepta una conexion.
+        # el socket debe estar enlazado a una direccion y
+        # tmb debe estar escuchando para conexiones.
         print("Got a connection from %s" % str(address))
         client_number += 1
         print(f'Client number: {client_number}')
+        # inicio un proceso de manera concurrente
         p = multiprocessing.Process(
             target=mp, args=(clientsocket, client_number))
         p.start()
