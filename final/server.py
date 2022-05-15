@@ -1,4 +1,3 @@
-import math
 from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
 import numpy as np
@@ -82,9 +81,6 @@ serversocket.listen(2)
 # el backlog sirve para definir la cantidad de conexiones inaceptables permitidas.
 # cuando se llegue a ese numero, el servidor no aceptara mas conexiones.
 
-xlist = []
-ylist = []
-zlist = []
 dispersion = []
 
 # obtengo una lista de colores del archivo de configuracion.
@@ -98,21 +94,22 @@ def calcular_puntos(tiempo, tick, vz, vx, vy, x, y, z,
                     duracion, ax, dot_color, vi, a, b, wind,
                     wind_angle, client_number,
                     cursor, hmax, cs):
+
+    # por cada iteracion calcula una posicion y la grafica
     while True:
         tiempo = tiempo + tick
+        # la velocidad en z es variable
         vz = celery_calc.vz_variable.delay(vz, tick).get()
         x = celery_calc.pos_x.delay(x, vx, tick).get()
         y = celery_calc.pos_y.delay(y, vy, tick).get()
         z = celery_calc.pos_z.delay(z, vz, tick).get()
         if z <= 0:
-            xlist.append(x)
-            ylist.append(y)
-            zlist.append(z)
             dispersion.append([x, y])
             break
         ax.scatter(x, y, z, c=dot_color, marker='o')
         plt.draw()
         plt.pause(0.0001)
+        # condicion de si se llega a la altura del viento
         if z > zviento.get():
             while duracion < wind_duration:
                 tiempo = tiempo + tick
@@ -148,8 +145,9 @@ def plot(vi, a, b, wind, wind_angle, dot_color, ax, wind_duration,
     vely = celery_calc.vel_y.delay(vi, a, b)
     velz = celery_calc.vel_z.delay(vi, a)
 
-    # calculo de la altura del viento
+    # calculo de la altura del viento ( 2/3 de la altura maxima )
     zviento = celery_calc.altura_viento.delay(velz.get())
+    # calculo de la altura maxima
     hmax = zviento.get()/(2/3)
 
     # tick de tiempo
@@ -181,6 +179,7 @@ def plot(vi, a, b, wind, wind_angle, dot_color, ax, wind_duration,
 
 def mp(clientsocket, client_number):
 
+    # me conecto a la DB para empezar a agregarle datos
     myConnection = psycopg2.connect(
         host=hostname, user=username, password=password, dbname=database
     )
@@ -195,6 +194,7 @@ def mp(clientsocket, client_number):
     ax.set_zlabel('z')
 
     i = -1
+    # el servidor recibe la informacion del cliente
     cantidad = int(clientsocket.recv(1024).decode())
     vi = int(clientsocket.recv(1024).decode())
     a = int(clientsocket.recv(1024).decode())
@@ -203,32 +203,34 @@ def mp(clientsocket, client_number):
         i += 1
         if i == cantidad:
             break
-        wind = rnd.randint(0, 10)
-        wind_angle = rnd.randint(0, 360)
-        wind_duration = rnd.uniform(0, 1)
+        # obtiene valores aleatorios del viento
+        wind = rnd.randint(0, 10) # velocidad
+        wind_angle = rnd.randint(0, 360) # angulo
+        wind_duration = rnd.uniform(0, 1) # duracion
+        # envio la informacion del viento al cliente
         data = f"""
 (Simulacion {i+1}) Valores del viento:\n\tVelocidad = {wind} m/s
 \tAngulo = {wind_angle}\n\tDuracion = {wind_duration}
 """
         clientsocket.send(data.encode())
-        dot_color = color[rnd.randint(0, 8)]
+        # obtiene un color aleatorio para los puntos q se van a graficar
+        dot_color = color[rnd.randint(0, 25)]
         plot(vi, a, b, wind, wind_angle, dot_color,
              ax, wind_duration, clientsocket, client_number,
              cursor)
     plt.show()
-    # print(dispersion)
+
     mayor = 0
     j = 1
+    # realizo el calculo de la dispersion
     for i in range(len(dispersion)):
         for j in range(len(dispersion)):
             l = celery_calc.disp.delay(dispersion, i, j).get()
-            # l = math.sqrt(((dispersion[j][0]-dispersion[i][0])
-            #               ** 2) + ((dispersion[j][1]-dispersion[i][1])**2))
-            #print(f'Distancia: {l}')
             if l > mayor:
                 mayor = l
         j = + 1
-    # print(f'Mayor distancia entre puntos = {mayor}')
+
+    # agrego los nuevos datos a la tabla dispersion
     query = """ INSERT INTO dispersion (
         id_cliente, dispersion, fecha_hora
         ) VALUES (
@@ -236,11 +238,14 @@ def mp(clientsocket, client_number):
         )"""
     valores_insertar = (client_number, mayor, str(datetime.now()))
     cursor.execute(query, valores_insertar)
+    # confirmo y cierro la conexion con la DB
     myConnection.commit()
     myConnection.close()
+    # envio resultado de dispersion al cliente
     msg = f"Simulacion terminada.\nDistancia maxima entre puntos finales = {mayor} m"
     clientsocket.send(msg.encode())
     time.sleep(0.1)
+    # envio señal para terminal la conexion con el cliente
     exit_signal = "exit"
     clientsocket.send(exit_signal.encode())
 
