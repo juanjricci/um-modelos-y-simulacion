@@ -22,9 +22,9 @@ b = config["b"]
 
 print("Los valores por defecto seran:")
 print(f"Cantidad de simulaciones = {cant}")
-print(f"Velocidad inicial = {vi}")
-print(f"Angulo de salida = {a}")
-print(f"Angulo de desviacion = {b}")
+print(f"Velocidad inicial = {vi} m/s")
+print(f"Angulo de salida = {a} º")
+print(f"Angulo de desviacion = {b} º")
 mod = input("Desea modificarlos? [Y/N]: ")
 if mod == 'Y' or mod == 'y':
     cant = input('Ingrese la cantidad de simulaciones deseada: ')
@@ -39,7 +39,7 @@ s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 print(s)
 
 # get address
-host = config["host"]
+host = socket.gethostname() # config["host"]
 port = config["port"]
 # host = socket.gethostname()
 # port = 1234

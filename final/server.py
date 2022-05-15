@@ -198,7 +198,10 @@ def mp(clientsocket, client_number):
         wind = rnd.randint(0, 10)
         wind_angle = rnd.randint(0, 360)
         wind_duration = rnd.uniform(0, 1)
-        data = f"(Simulacion {i+1}) Valores del viento:\n\tVelocidad = {wind} m/s\n\tAngulo = {wind_angle}\n\tDuracion = {wind_duration}"
+        data = f"""
+(Simulacion {i+1}) Valores del viento:\n\tVelocidad = {wind} m/s
+\tAngulo = {wind_angle}\n\tDuracion = {wind_duration}
+"""
         clientsocket.send(data.encode())
         dot_color = color[rnd.randint(0, 8)]
         plot(vi, a, b, wind, wind_angle, dot_color,
@@ -228,6 +231,7 @@ def mp(clientsocket, client_number):
     myConnection.close()
     msg = f"Simulacion terminada.\nDistancia maxima entre puntos finales = {mayor} m"
     clientsocket.send(msg.encode())
+    time.sleep(0.1)
     exit_signal = "exit"
     clientsocket.send(exit_signal.encode())
 
