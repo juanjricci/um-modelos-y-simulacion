@@ -34,7 +34,7 @@ myConnection = psycopg2.connect(
 )
 cursor = myConnection.cursor()
 
-# quert para crear las tablas en la DB
+# query para crear las tablas en la DB
 create_tables_query = (
     """CREATE TABLE IF NOT EXISTS sim_data (
             id serial PRIMARY KEY,
@@ -109,7 +109,7 @@ def calcular_puntos(tiempo, tick, vz, vx, vy, x, y, z,
         ax.scatter(x, y, z, c=dot_color, marker='o')
         plt.draw()
         plt.pause(0.0001)
-        # condicion de si se llega a la altura del viento
+
         if z > zviento.get():
             while duracion < wind_duration:
                 tiempo = tiempo + tick
@@ -260,7 +260,7 @@ def multiP():
         print("Got a connection from %s" % str(address))
         client_number += 1
         print(f'Client number: {client_number}')
-        # inicio un proceso de manera concurrente
+        # utilizo multiprocesamiento para que la aplicacion sea multicliente
         p = multiprocessing.Process(
             target=mp, args=(clientsocket, client_number))
         p.start()

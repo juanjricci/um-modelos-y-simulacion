@@ -1,7 +1,7 @@
 import math
 import numpy as np
 """
-Funciones matematicas
+Formulas fisicas
 """
 
 from celery_calc_config import app
