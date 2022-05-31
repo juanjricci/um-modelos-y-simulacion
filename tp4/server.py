@@ -41,22 +41,21 @@ cursor = myConnection.cursor()
 create_tables_query = (
     """CREATE TABLE IF NOT EXISTS sim_data (
             id serial PRIMARY KEY,
-            velocidad_inicial int,
-            angulo_salida int,
-            angulo_desviacion int,
-            velocidad_viento int,
-            angulo_viento int,
-            duracion_viento float(2),
+            velocidad_viento float(4),
+            angulo_viento float(4),
+            duracion_viento float(4),
             tiempo_vuelo float(4),
             altura_maxima float(4),
             ultima_x float(2),
             ultima_y float(2),
+            fecha DATE,
+            hora TIME,
             id_cliente int
     );""",
     """CREATE TABLE IF NOT EXISTS dispersion (
             id_cliente int,
             dispersion float(4),
-            fecha_hora TIMESTAMP
+            fecha DATE
     );"""
 )
 
@@ -87,7 +86,7 @@ serversocket.listen(2)
 dispersion = []
 
 # obtengo una lista de colores del archivo de configuracion.
-color = config["color"]
+# color = config["color"]
 # color = ['red', 'green', 'blue', 'yellow',
 #          'black', 'gray', 'pink', 'purple', 'orange']
 
@@ -96,7 +95,7 @@ def calcular_puntos(tiempo, tick, vz, vx, vy, x, y, z,
                     zviento, wind_duration, rx, ry,
                     duracion, ax, dot_color, vi, a, b, wind,
                     wind_angle, client_number,
-                    cursor, hmax, cs):
+                    cursor, hmax, cs, fecha, hora):
 
     # por cada iteracion calcula una posicion y la grafica
     while True:
@@ -128,20 +127,20 @@ def calcular_puntos(tiempo, tick, vz, vx, vy, x, y, z,
                 plt.pause(0.0001)
 
     query = """ INSERT INTO sim_data (
-        velocidad_inicial, angulo_salida, angulo_desviacion,
         velocidad_viento, angulo_viento, duracion_viento,
         tiempo_vuelo, altura_maxima, ultima_x, ultima_y,
-        id_cliente
+        fecha, hora, id_cliente
         ) VALUES (
-            %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s
+            %s,%s,%s,%s,%s,%s,%s,%s,%s,%s 
         )"""
-    valores_insertar = (vi, a, b, wind, wind_angle,
-                        wind_duration, tiempo, hmax, x, y, client_number)
+    valores_insertar = (wind, wind_angle,wind_duration,
+                        tiempo, hmax, x, y, fecha, hora,
+                        client_number)
     cursor.execute(query, valores_insertar)
 
 
 def plot(vi, a, b, wind, wind_angle, dot_color, ax, wind_duration,
-         cs, client_number, cursor):
+         cs, client_number, cursor, fecha, hora):
 
     # calculos de componentes del vector velocidad
     velx = celery_calc.vel_x.delay(vi, a, b)
@@ -177,7 +176,7 @@ def plot(vi, a, b, wind, wind_angle, dot_color, ax, wind_duration,
     calcular_puntos(tiempo, tick, vz, vx, vy, x, y, z, zviento,
                     wind_duration, rx, ry, duracion, ax, dot_color,
                     vi, a, b, wind, wind_angle, client_number,
-                    cursor, hmax, cs)
+                    cursor, hmax, cs, fecha, hora)
 
 
 def mp(clientsocket, client_number):
@@ -198,6 +197,7 @@ def mp(clientsocket, client_number):
 
     i = -1
     # el servidor recibe la informacion del cliente
+    fecha = clientsocket.recv(1024).decode('utf-8')
     cantidad, vi, a, b = [int(i) for i in clientsocket.recv(2048).decode('utf-8').split('|')]
     # cantidad = int(clientsocket.recv(1024).decode())
     # vi = int(clientsocket.recv(1024).decode())
@@ -208,20 +208,34 @@ def mp(clientsocket, client_number):
         if i == cantidad:
             break
         # obtiene valores aleatorios del viento
-        wind = rnd.randint(0, 10) # velocidad
-        wind_angle = rnd.randint(0, 360) # angulo
+        query = f"select * from viento WHERE fecha = '{fecha}'"
+        cursor.execute(query)
+        datos = cursor.fetchall()
+        velocidad = datos[i][3]
+        direccion = datos[i][2]
+        hora = datos[i][1]
+        print(f'Velocidad = {velocidad}')
+        print(f'Direccion = {direccion}')
+        #wind = rnd.randint(0, 10) # velocidad
+        #wind_angle = rnd.randint(0, 360) # angulo
         wind_duration = rnd.uniform(0, 1) # duracion
         # envio la informacion del viento al cliente
         data = f"""
-(Simulacion {i+1}) Valores del viento:\n\tVelocidad = {wind} m/s
-\tAngulo = {wind_angle}\n\tDuracion = {wind_duration}
+(Simulacion {i+1}) Valores del viento:\n\tVelocidad = {velocidad} m/s
+\tAngulo = {direccion}\n\tDuracion = {wind_duration}\n\tFecha = {fecha}\n\tHora = {hora}
 """
         clientsocket.send(data.encode())
         # obtiene un color aleatorio para los puntos q se van a graficar
-        dot_color = color[rnd.randint(0, 25)]
-        plot(vi, a, b, wind, wind_angle, dot_color,
+        red = rnd.random()
+        green = rnd.random()
+        blue = rnd.random()
+        col = (red, green, blue)
+        dot_color = np.array([col])
+        # dot_color = color[rnd.randint(0, 25)]
+        plot(vi, a, b, velocidad, direccion, dot_color,
              ax, wind_duration, clientsocket, client_number,
-             cursor)
+             cursor, fecha, hora)
+    plt.savefig(f'grafico({client_number}).png')
     plt.show()
 
     mayor = 0
@@ -236,11 +250,11 @@ def mp(clientsocket, client_number):
 
     # agrego los nuevos datos a la tabla dispersion
     query = """ INSERT INTO dispersion (
-        id_cliente, dispersion, fecha_hora
+        id_cliente, dispersion, fecha
         ) VALUES (
             %s,%s,%s
         )"""
-    valores_insertar = (client_number, mayor, str(datetime.now()))
+    valores_insertar = (client_number, mayor, fecha)
     cursor.execute(query, valores_insertar)
     # confirmo y cierro la conexion con la DB
     myConnection.commit()

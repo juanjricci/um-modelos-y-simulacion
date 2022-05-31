@@ -25,14 +25,7 @@ print(f"Cantidad de simulaciones = {cant}")
 print(f"Velocidad inicial = {vi} m/s")
 print(f"Angulo de salida = {a} º")
 print(f"Angulo de desviacion = {b} º")
-mod = input("Desea modificarlos? [Y/N]: ")
-if mod == 'Y' or mod == 'y':
-    cant = input('Ingrese la cantidad de simulaciones deseada: ')
-    vi = input('Ingrese la velocidad inicial: ')
-    a = input('Ingrese el angulo de salida: ')
-    b = input('Ingrese el angulo de desviacion: ')
-else:
-    pass
+fecha = input("Ingrese la fecha que quiere modelar (YYYY-MM-DD): ")
 
 # create a socket object
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
@@ -48,6 +41,8 @@ print("Haciendo el connect")
 # connection to hostname on the port.
 s.connect((host, port))   
 print("Handshake realizado con exito!")
+
+s.send(str(fecha).encode())
 
 time.sleep(0.5)
 
