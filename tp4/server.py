@@ -190,6 +190,7 @@ def mp(clientsocket, client_number):
     # declaracion de la figura y sus ejes
     plt.ion()
     fig = plt.figure()
+    plt.title(f'Simulacion {client_number}')
     ax = fig.add_subplot(111, projection='3d')
     ax.set_xlabel('x')
     ax.set_ylabel('y')
@@ -199,6 +200,7 @@ def mp(clientsocket, client_number):
     # el servidor recibe la informacion del cliente
     fecha = clientsocket.recv(1024).decode('utf-8')
     cantidad, vi, a, b = [int(i) for i in clientsocket.recv(2048).decode('utf-8').split('|')]
+    ax.set_title(f'Simulacion {client_number} ({fecha})')
     # cantidad = int(clientsocket.recv(1024).decode())
     # vi = int(clientsocket.recv(1024).decode())
     # a = int(clientsocket.recv(1024).decode())
